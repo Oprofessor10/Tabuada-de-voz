@@ -1,0 +1,930 @@
+/* =========================
+   RESET / BASE
+========================= */
+*{ box-sizing: border-box; }
+
+html, body{
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+body{
+  font-family: Arial, sans-serif;
+  text-align: center;
+  color: #fff;
+  background: #0b0f14;
+}
+
+/* melhora toque no celular */
+button, select, input{ touch-action: manipulation; }
+
+.hidden{ display: none !important; }
+
+/* =========================
+   VARIÁVEIS
+========================= */
+:root{
+  --cardW: 240px;   /* desktop */
+  --xW: 90px;
+
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* ✅ altura REAL do keypad (setada via JS no HTML) */
+  --keypadH: 0px;
+
+  /* ✅ fallback: se JS não setar, usa aproximado */
+  --kb-h: var(--keypadH, 290px);
+}
+
+/* =========================
+   TABULEIRO
+========================= */
+.tabuleiro{
+  position: relative;
+  max-width: 1300px;
+  width: 96%;
+  margin: 10px auto;
+  padding: 18px 24px;
+  border-radius: 26px;
+
+  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+  box-shadow: 0 0 40px rgba(0,0,0,0.6);
+  overflow: hidden;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  z-index: 10;
+}
+
+.tabuleiro::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(0,160,255,0.14), transparent 45%),
+    radial-gradient(circle at 80% 30%, rgba(0,255,170,0.10), transparent 45%),
+    radial-gradient(circle at 50% 90%, rgba(255,255,255,0.05), transparent 55%);
+  pointer-events: none;
+  z-index: 0;
+}
+.tabuleiro > *{ position: relative; z-index: 1; }
+
+/* =========================
+   TOPO
+========================= */
+.titulo{
+  font-size: 40px;
+  margin: 4px 0 10px;
+  letter-spacing: 3px;
+  text-shadow:
+    0 0 10px rgba(0,140,255,0.9),
+    0 0 22px rgba(0,140,255,0.6);
+}
+
+.seletor{
+  margin-bottom: 6px;
+  font-size: 18px;
+}
+.seletor select{
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+}
+
+#btnIniciar{
+  display: none !important;
+  width: fit-content;
+  margin: 6px auto 10px;
+  padding: 10px 22px;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(45deg, #00ff88, #00cc66);
+  font-weight: 900;
+  font-size: 18px;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+#btnIniciar:hover{
+  transform: scale(1.06);
+  box-shadow: 0 0 16px rgba(0,255,136,0.55);
+}
+
+.painel{
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  font-size: 20px;
+  margin: 6px 0 12px;
+}
+
+/* =========================
+   ÁREA DAS CARTAS (DESKTOP = GRID)
+========================= */
+.area-cartas{
+  flex: 1;
+  width: fit-content;
+  margin: 0 auto;
+
+  display: grid;
+  grid-template-columns: var(--cardW) var(--xW) var(--cardW);
+  align-items: center;
+  justify-content: center;
+  justify-items: center;
+  gap: 20px;
+}
+
+/* =========================
+   PILHAS
+========================= */
+.pilha{
+  position: relative;
+  width: var(--cardW);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.pilha-topo{
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px 10px;
+  gap: 10px;
+}
+
+#pilhaEsquerda .pilha-topo{
+  justify-content: center;
+  padding-bottom: 12px;
+}
+#labelTabuada{
+  width: 100%;
+  text-align: center;
+}
+
+.pilha-label{
+  font-size: 14px;
+  font-weight: 900;
+  opacity: .92;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+}
+
+.pilha-contador{
+  min-width: 52px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 16px;
+  background: rgba(0,0,0,.28);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 10px 24px rgba(0,0,0,.25);
+}
+
+.pilha-rodape{
+  width: 100%;
+  padding-top: 12px;
+}
+.pilha-mini{
+  font-size: 13px;
+  opacity: .85;
+}
+
+/* =========================
+   CARTAS
+========================= */
+.carta{
+  width: var(--cardW);
+  height: auto;
+  aspect-ratio: 3 / 4;
+  position: relative;
+  display: grid;
+  place-items: center;
+
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 96% 96%;
+
+  filter: drop-shadow(0 18px 28px rgba(0,0,0,0.6));
+  transition: transform .2s ease, filter .2s ease;
+}
+.carta:hover{
+  transform: translateY(-4px);
+  filter: drop-shadow(0 14px 22px rgba(0,0,0,0.55));
+}
+
+.carta.front{ background-image: url("frente_carta_borda_azul_transparente.png"); }
+.carta.back{  background-image: url("costa_carta_borda_azul_transparente.png"); }
+.carta.back-prof{ background-image: url("./oprofessor_carta.png"); }
+
+.numero{
+  display: none;
+  position: absolute;
+  top: 47%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 150px;
+  font-weight: 900;
+  color: #000;
+  text-shadow: 4px 4px 0 rgba(255,255,255,0.7);
+  user-select: none;
+  pointer-events: none;
+}
+.carta.back .numero{ display: block; }
+
+/* “monte” da direita */
+.pilha-direita{ --stack: 20; }
+
+.pilha-direita::before,
+.pilha-direita::after{
+  content:"";
+  position:absolute;
+  inset: 58px 12px 44px 12px;
+  border-radius: 22px;
+  background-image: url("costa_carta_borda_azul_transparente.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  opacity: .75;
+  filter: drop-shadow(0 18px 28px rgba(0,0,0,0.55));
+  z-index: 0;
+}
+.pilha-direita::before{
+  transform: translate(calc(6px + (min(var(--stack), 60) / 60) * 18px),
+                      calc(8px + (min(var(--stack), 60) / 60) * 22px))
+             rotate(2deg);
+  opacity: .55;
+}
+.pilha-direita::after{
+  transform: translate(calc(12px + (min(var(--stack), 60) / 60) * 26px),
+                      calc(16px + (min(var(--stack), 60) / 60) * 32px))
+             rotate(4deg);
+  opacity: .28;
+}
+.pilha .carta{ z-index: 1; }
+
+.pilha-zerou{
+  position: absolute;
+  inset: 78px 8px 58px 8px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(8px);
+  font-weight: 900;
+  font-size: 18px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.35);
+  z-index: 2;
+}
+
+/* =========================
+   X CENTRAL
+========================= */
+.multiplicador{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--xW);
+  height: auto;
+  pointer-events: none;
+}
+.x-rabisco{ width: 80%; height: 80%; transform: rotate(-8deg); }
+.x-rabisco path{
+  stroke: #fff;
+  stroke-width: 12;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.95;
+}
+.x-rabisco path:nth-child(2){
+  stroke-width: 7;
+  opacity: 0.35;
+  transform: translate(5px, -4px);
+}
+
+/* =========================
+   INPUT RESPOSTA (base)
+========================= */
+.resposta-area{
+  margin: 10px 0 10px;
+  padding-bottom: 8px;
+}
+
+.resposta-area input{
+  padding: 12px;
+  font-size: 18px;
+  width: 240px;
+  border-radius: 12px;
+  border: none;
+  outline: none;
+  text-align: center;
+
+  background: #e6e6e6;
+  color: #000;
+  caret-color: #000;
+  font-weight: 700;
+  border: 2px solid rgba(0,255,136,0.35);
+}
+
+.resposta-area input::placeholder{
+  color: #444;
+  opacity: 1;
+}
+
+#respostaInput:disabled{
+  opacity: 1;
+  -webkit-text-fill-color: #000;
+  color: #000;
+  caret-color: #000;
+}
+
+/* =========================
+   FIM (fallback)
+========================= */
+.fim-jogo{
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  width: min(900px, 92%);
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(0,0,0,.25);
+  border: 1px solid rgba(255,255,255,.10);
+  backdrop-filter: blur(6px);
+  font-size: 22px;
+  font-weight: 900;
+  z-index: 12000;
+}
+.fim-jogo:empty{ display:none; }
+
+/* =========================
+   FX Canvas (fogos)
+========================= */
+#fxCanvas{
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 30000;
+  mix-blend-mode: screen;
+}
+
+/* =========================
+   MODAL
+========================= */
+.modal{
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,.55);
+  z-index: 20000;
+  backdrop-filter: blur(8px);
+}
+.modal.hidden{ display: none; }
+
+.modal-box{
+  width: min(560px, 92vw);
+  background: rgba(12, 20, 26, .92);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 18px;
+  padding: 18px 18px 14px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.55);
+  text-align: center;
+  animation: surgirModal .25s ease;
+}
+
+@keyframes surgirModal{
+  from{ transform: scale(.85); opacity: 0; }
+  to{ transform: scale(1); opacity: 1; }
+}
+
+.modal-titulo{
+  font-size: 24px;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+.modal-texto{
+  font-size: 16px;
+  line-height: 1.35;
+  opacity: .95;
+  margin-bottom: 14px;
+}
+.modal-botoes{
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+.btn-pri, .btn-sec{
+  border: none;
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.btn-pri{ background: linear-gradient(45deg, #00ff88, #00cc66); }
+.btn-sec{ background: rgba(255,255,255,.12); color: #fff; }
+
+/* =========================
+   TECLADO VIRTUAL
+========================= */
+.keypad{
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: max(4px, env(safe-area-inset-bottom));
+  width: min(460px, 94vw);
+  padding: 8px;
+  border-radius: 16px;
+  background: rgba(10, 16, 22, .78);
+  border: 1px solid rgba(255,255,255,.10);
+  backdrop-filter: blur(10px);
+  z-index: 15000;
+  box-shadow: 0 18px 60px rgba(0,0,0,.55);
+}
+.keypad.hidden{ display:none; }
+
+.keypad-row{
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.keypad-row:last-child{ margin-bottom: 0; }
+
+.kp{
+  border: none;
+  border-radius: 12px;
+  padding: 12px 0;
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+  background: rgba(255,255,255,.10);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.kp:active{ transform: scale(.98); }
+.kp-fn{ background: rgba(255,255,255,.14); }
+.kp-ok{
+  background: linear-gradient(45deg, #00ff88, #00cc66);
+  color: #052b17;
+}
+.kp-wide{ grid-column: span 4; }
+
+/* =========================
+   RESPONSIVO (<=900)
+========================= */
+@media (max-width: 900px){
+  .tabuleiro{
+    width: 100vw;
+    max-width: 100vw;
+    margin: 0;
+    border-radius: 0;
+    padding: 12px 12px 16px;
+    min-height: 100dvh;
+    height: auto;
+    overflow: visible;
+  }
+
+  .titulo{
+    font-size: 28px;
+    letter-spacing: 2px;
+    margin: 8px 0 10px;
+  }
+
+  .seletor{
+    font-size: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .seletor select{
+    font-size: 16px;
+    padding: 10px 12px;
+  }
+
+  .painel{
+    font-size: 18px;
+    gap: 18px;
+  }
+
+  :root{
+    --cardW: min(42vw, 180px);
+    --xW: min(14vw, 60px);
+  }
+
+  .numero{
+    font-size: clamp(64px, 18vw, 110px);
+  }
+
+  .pilha-direita::before,
+  .pilha-direita::after{
+    opacity: .12;
+    filter: none;
+  }
+
+  .resposta-area input{
+    width: min(360px, 92vw);
+    padding: 14px 16px;
+    font-size: 18px;
+    border-radius: 14px;
+  }
+
+  .modal,
+  .keypad,
+  .fim-jogo,
+  .pilha-zerou{
+    backdrop-filter: none !important;
+  }
+
+  .modal{ background: rgba(0,0,0,.82) !important; }
+  .keypad{ background: rgba(10,16,22,.90) !important; }
+  .fim-jogo{ background: rgba(0,0,0,.40) !important; }
+  .pilha-zerou{ background: rgba(0,0,0,.45) !important; }
+
+  body.modal-open .tabuleiro{
+    filter: brightness(.45) !important;
+  }
+
+  .carta{
+    filter: none !important;
+    box-shadow: 0 14px 26px rgba(0,0,0,.40);
+  }
+
+  .carta:hover{
+    transform: none;
+    box-shadow: 0 14px 26px rgba(0,0,0,.40);
+  }
+
+  #modal{
+    z-index: 20000 !important;
+  }
+
+  #fxCanvas{
+    mix-blend-mode: screen !important;
+    z-index: 30000 !important;
+    background: transparent !important;
+  }
+}
+
+/* =========================
+   MOBILE PATCH (<=520)
+========================= */
+@media (max-width: 520px){
+  .area-cartas{
+    width: 100% !important;
+    max-width: 100% !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 46px minmax(0, 1fr) !important;
+    gap: 10px !important;
+    justify-items: center !important;
+    overflow: hidden !important;
+    padding: 6px 0 0 !important;
+  }
+
+  .pilha{
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .carta{
+    width: 100% !important;
+    max-width: 190px !important;
+    aspect-ratio: 3 / 4 !important;
+  }
+
+  .multiplicador{
+    width: 46px !important;
+    height: 46px !important;
+  }
+
+  .x-rabisco{
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  body.keypad-on .modal{
+    align-items: flex-start !important;
+    padding-top: 12px !important;
+    padding-bottom: calc(var(--kb-h) + var(--safe-bottom) + 14px) !important;
+  }
+
+  body:not(.keypad-on) .modal{
+    place-items: center !important;
+    padding-top: 0 !important;
+    padding-bottom: var(--safe-bottom) !important;
+  }
+
+  .modal-box{
+    width: min(94vw, 560px) !important;
+    max-height: calc(100svh - var(--kb-h) - var(--safe-bottom) - 22px) !important;
+    overflow: hidden !important;
+  }
+
+  .modal-texto{
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-height: calc(100svh - var(--kb-h) - 190px) !important;
+    padding-bottom: 14px !important;
+  }
+}
+
+/* EXTRA: telas bem pequenas (<=390) */
+@media (max-width: 390px){
+  .area-cartas{
+    grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr) !important;
+  }
+
+  .multiplicador{
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .x-rabisco{
+    width: 36px !important;
+    height: 36px !important;
+  }
+}
+
+/* quando modal abre no celular, esconda keypad */
+body.modal-open .keypad{
+  display: none !important;
+}
+
+@media (max-width: 520px){
+  body.modal-open .modal{
+    padding-bottom: var(--safe-bottom) !important;
+  }
+
+  body.modal-open .modal-box{
+    max-height: calc(100svh - var(--safe-bottom) - 16px) !important;
+  }
+
+  body.modal-open .modal-texto{
+    max-height: calc(100svh - 190px) !important;
+  }
+}
+
+/* LANDSCAPE: keypad na direita + resposta no canto */
+@media (max-width: 900px) and (orientation: landscape){
+  :root{
+    --cardW: min(26vh, 150px);
+    --xW: min(10vh, 44px);
+  }
+
+  .titulo{
+    font-size: 22px;
+    margin: 6px 0 6px;
+  }
+
+  .painel{
+    font-size: 16px;
+    margin: 6px 0 8px;
+  }
+
+  .numero{
+    font-size: clamp(40px, 12vh, 90px);
+  }
+
+  body.keypad-on .keypad{
+    left: auto;
+    right: max(8px, env(safe-area-inset-right));
+    transform: none;
+    width: min(380px, 42vw);
+    bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  body.keypad-on .resposta-area{
+    position: fixed;
+    left: 10px;
+    right: calc(min(42vw, 380px) + 16px);
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 17000;
+    margin: 0;
+    padding: 0;
+  }
+
+  body.keypad-on .resposta-area input{
+    width: 100%;
+    max-width: none;
+  }
+}
+
+/* MOBILE RETRATO NORMAL */
+@media (max-width: 900px) and (orientation: portrait){
+  body.keypad-on{
+    overflow: hidden !important;
+    height: 100dvh !important;
+
+    --top-ui: 175px;
+    --answer-h: 62px;
+    --gap: 14px;
+
+    --cardH: clamp(
+      150px,
+      calc(100dvh - var(--kb-h) - var(--top-ui) - var(--answer-h) - var(--gap)),
+      260px
+    );
+
+    --cardW: calc(var(--cardH) * 0.75);
+    --xW: 46px;
+  }
+
+  body.keypad-on .tabuleiro{
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    overflow: hidden !important;
+    padding-bottom: 0 !important;
+  }
+
+  body.keypad-on .pilha{
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 6px !important;
+    overflow: visible !important;
+    position: relative !important;
+    height: calc(var(--cardH) + 44px) !important;
+  }
+
+  body.keypad-on .pilha-topo{
+    width: 100% !important;
+    min-height: 28px !important;
+    padding: 0 6px 4px !important;
+    overflow: visible !important;
+    align-items: center !important;
+  }
+
+  body.keypad-on .pilha-label{
+    white-space: nowrap !important;
+    font-size: 12px !important;
+  }
+
+  body.keypad-on #pilhaDireita .pilha-topo{
+    justify-content: center !important;
+    position: relative !important;
+    padding-right: 56px !important;
+  }
+
+  body.keypad-on #pilhaDireita .pilha-label{
+    opacity: .95 !important;
+    text-align: left !important;
+  }
+
+  body.keypad-on #pilhaDireita .pilha-contador{
+    position: absolute !important;
+    right: 0 !important;
+    top: 0 !important;
+    transform: translate(20%, -10%) !important;
+    z-index: 5 !important;
+    min-width: 40px !important;
+    padding: 6px 8px !important;
+    line-height: 1 !important;
+    border-radius: 999px !important;
+  }
+
+  body.keypad-on .resposta-area{
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: calc(var(--kb-h) + 8px + env(safe-area-inset-bottom)) !important;
+    margin: 0 !important;
+    padding: 0 14px !important;
+    z-index: 17000 !important;
+  }
+
+  body.keypad-on .resposta-area input{
+    display: block !important;
+    width: min(360px, 92vw) !important;
+    margin: 0 auto !important;
+    height: 54px !important;
+    border-radius: 14px !important;
+  }
+
+  body.keypad-on .pilha-esquerda::before,
+  body.keypad-on .pilha-esquerda::after,
+  body.keypad-on .pilha-direita::before,
+  body.keypad-on .pilha-direita::after{
+    display: none !important;
+  }
+
+  body.keypad-on .area-cartas{
+    flex: 1 !important;
+    width: 100% !important;
+    margin: -10px auto 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) var(--xW) minmax(0, 1fr) !important;
+    gap: 10px !important;
+    align-items: center !important;
+    justify-items: center !important;
+    align-content: start !important;
+    padding-top: 4px !important;
+    padding-bottom: calc(var(--answer-h) + var(--gap)) !important;
+    overflow: visible !important;
+  }
+
+  body.keypad-on .multiplicador{
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: var(--cardH) !important;
+  }
+
+  body.keypad-on .carta{
+    width: var(--cardW) !important;
+    height: var(--cardH) !important;
+    max-width: none !important;
+    aspect-ratio: 3 / 4 !important;
+    filter: none !important;
+    box-shadow: none !important;
+  }
+
+  body.keypad-on .fim-jogo{
+    bottom: calc(var(--kb-h) + 80px) !important;
+  }
+}
+
+/* =========================
+   MODO DUELO
+========================= */
+body.modo-duelo .titulo,
+body.modo-duelo .seletor,
+body.modo-duelo .painel,
+body.modo-duelo #fimJogo,
+body.modo-duelo #labelTabuada,
+body.modo-duelo .pilha-topo,
+body.modo-duelo .pilha-rodape,
+body.modo-duelo #pilhaZerouMsg{
+  display: none !important;
+}
+
+body.modo-duelo .tabuleiro{
+  min-height: 100dvh !important;
+}
+
+@media (max-width: 900px){
+  body.modo-duelo .tabuleiro{
+    padding-top: calc(var(--dueloH, 120px) - 28px) !important;
+  }
+
+  body.modo-duelo .area-cartas{
+    margin-top: -66px !important;
+    padding: 0 8px 70px !important;
+    grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    justify-items: center !important;
+    align-items: center !important;
+    align-content: center !important;
+  }
+
+  body.modo-duelo .pilha{
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body.modo-duelo .carta{
+    width: 100% !important;
+    max-width: 160px !important;
+    height: auto !important;
+    aspect-ratio: 3 / 4 !important;
+  }
+
+body.modo-duelo .multiplicador{
+  width: 44px !important;
+  height: 44px !important;
+  align-self: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transform: translateY(-54px) !important;
+}
+
+  body.modo-duelo .x-rabisco{
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  body.modo-duelo.keypad-on .resposta-area{
+    bottom: calc(var(--kb-h) + 10px + env(safe-area-inset-bottom)) !important;
+  }
+}
