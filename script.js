@@ -68,7 +68,23 @@ let tabuadaAtual = 1;
 let faseAtual = "facil";
 
 let modalArmedAt = 0; // trava Enter logo após abrir modal
-
+// =======================
+// CONFIG
+// =======================
+const CONFIG = {
+  TEMPO_JOGO: 60,
+  TEMPO_DUELO_MS: 10000, // mantém 10s por enquanto para não mudar a experiência atual
+  METAS: {
+    facil: 4,   // mantém valor atual
+    media: 40,
+    dificil: 60
+  },
+  LIMITE_MESTRE: {
+    facil: 25,
+    media: 40,
+    dificil: 55
+  }
+};
 // =======================
 // ELEMENTOS
 // =======================
@@ -1931,4 +1947,5 @@ document.addEventListener("keydown", (e) => {
   } else {
     setModoEscolhaCartas();
   }
+
 })();
