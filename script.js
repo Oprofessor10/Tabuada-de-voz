@@ -52,7 +52,7 @@ let numeroAtual = 1;
 let fase = "facil";
 let meta = 20;
 
-let etapa = "normal"; // "normal" ou "aleatorio"
+let etapa = "normal";
 
 let tempo = 60;
 let intervalo = null;
@@ -67,10 +67,9 @@ let aguardandoDecisao = false;
 let tabuadaAtual = 1;
 let faseAtual = "facil";
 
-let modalArmedAt = 0; // trava Enter logo após abrir modal
+let modalArmedAt = 0;
 
-// modo de verificação extra para não sobrescrever window.verificar
-let modoVerificacao = "normal"; // "normal" | "oprofessor"
+let modoVerificacao = "normal";
 let estadoOprofessor = null;
 
 // =======================
@@ -85,6 +84,9 @@ const numEsquerda = document.getElementById("numEsquerda");
 const numDireita = document.getElementById("numDireita");
 
 const respostaInput = document.getElementById("respostaInput");
+const btnVoz = document.getElementById("btnVoz");
+const vozStatus = document.getElementById("vozStatus");
+
 const tempoSpan = document.getElementById("tempo");
 const acertosSpan = document.getElementById("acertos");
 const errosSpan = document.getElementById("erros");
@@ -109,20 +111,14 @@ const fxCtx = fxCanvas ? fxCanvas.getContext("2d") : null;
 // =======================
 const keypad = document.getElementById("keypad");
 
-/*
-  ✅ PONTO EXATO DO "syncKeypadState"
-  Fica AQUI, logo depois do const keypad = ...
-*/
 function syncKeypadState() {
   if (!keypad) return;
   const aberto = !keypad.classList.contains("hidden");
   document.body.classList.toggle("keypad-on", !!aberto);
 }
 
-// sincroniza ao carregar
 syncKeypadState();
 
-// observa mudanças na classe do keypad (abre/fecha)
 if (keypad) {
   const obs = new MutationObserver(syncKeypadState);
   obs.observe(keypad, { attributes: true, attributeFilter: ["class"] });
@@ -212,7 +208,7 @@ function autoStartIfNeeded() {
 }
 
 // =======================
-// DESAFIO DOS MESTRES (POOL SEM REPETIR)
+// DESAFIO DOS MESTRES
 // =======================
 let mestresPool = [];
 let mestresAtivos = true;
@@ -234,7 +230,7 @@ function pegarProximoMestre() {
 }
 
 // =======================
-// DUELO (overlay criado via JS) - POR TEMPO
+// DUELO
 // =======================
 let dueloEl = null;
 let dueloAtivo = false;
@@ -245,15 +241,12 @@ let duelo = {
   pontosMestre: 0,
   errosAluno: 0,
   errosMestre: 0,
-
-  duracaoMs: 10000, // teste 10s
+  duracaoMs: 10000,
   fimEm: 0,
   tickTimer: null,
-
   mestreTimer: null,
   mestreTentativas: 0,
   mestreMaxTentativas: 25,
-
   perguntaToken: 0,
   chanceErro: 0.12
 };
@@ -321,8 +314,8 @@ function ensureDueloOverlay() {
   z-index: 12000;
   pointer-events: none;
 }
-    .duelo.hidden{ display:none; }
-  .duelo-box{
+.duelo.hidden{ display:none; }
+.duelo-box{
   pointer-events:none;
   width: min(980px, 96vw);
   border-radius: 18px;
@@ -334,47 +327,46 @@ function ensureDueloOverlay() {
   max-height: 92svh;
   overflow: hidden;
 }
-    .duelo-row{ display:flex; align-items: stretch; justify-content: center; gap: 14px; }
-    .duelo-card{
-      flex: 1; min-width: 0; width: 100%;
-      border-radius: 16px; padding: 12px 14px;
-      background: rgba(0,0,0,.28);
-      border: 1px solid rgba(255,255,255,.10);
-      font-weight: 900; overflow: hidden;
-    }
-    .duelo-head{ display:flex; align-items:center; gap:12px; margin-bottom: 10px; min-width: 0; }
-    .duelo-foto{
-      width: 86px; height: 86px; border-radius: 999px;
-      object-fit: contain; background: rgba(255,255,255,.06); padding: 6px;
-      border: 3px solid rgba(255,255,255,.25);
-      box-shadow: 0 14px 30px rgba(0,0,0,.35); flex: 0 0 auto;
-    }
-    .duelo-nome{
-      font-size: 20px; letter-spacing: 1px; text-transform: uppercase;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 100%;
-    }
-    .duelo-placar{
-      display:flex; gap: 18px; font-size: 18px; align-items:center;
-      flex-wrap: wrap; justify-content:flex-end; text-align:right;
-    }
-    .duelo-versus{
-      align-self: center; width: 86px; height: 86px; display:grid; place-items:center;
-      border-radius: 22px;
-      background: linear-gradient(135deg, rgba(255,60,60,.35), rgba(0,255,160,.25));
-      border: 2px solid rgba(255,255,255,.18);
-      box-shadow: 0 18px 45px rgba(0,0,0,.35);
-      font-weight: 900; letter-spacing: 1px; text-transform: uppercase;
-      transform: rotate(-6deg); position: relative; flex: 0 0 auto;
-    }
-    .duelo-versus::before{ content:"⚔️"; position:absolute; top: 10px; font-size: 20px; opacity: .95; }
-    .duelo-versus::after{ content:"RING"; position:absolute; bottom: 10px; font-size: 12px; opacity: .85; letter-spacing: 2px; }
+.duelo-row{ display:flex; align-items: stretch; justify-content: center; gap: 14px; }
+.duelo-card{
+  flex: 1; min-width: 0; width: 100%;
+  border-radius: 16px; padding: 12px 14px;
+  background: rgba(0,0,0,.28);
+  border: 1px solid rgba(255,255,255,.10);
+  font-weight: 900; overflow: hidden;
+}
+.duelo-head{ display:flex; align-items:center; gap:12px; margin-bottom: 10px; min-width: 0; }
+.duelo-foto{
+  width: 86px; height: 86px; border-radius: 999px;
+  object-fit: contain; background: rgba(255,255,255,.06); padding: 6px;
+  border: 3px solid rgba(255,255,255,.25);
+  box-shadow: 0 14px 30px rgba(0,0,0,.35); flex: 0 0 auto;
+}
+.duelo-nome{
+  font-size: 20px; letter-spacing: 1px; text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 100%;
+}
+.duelo-placar{
+  display:flex; gap: 18px; font-size: 18px; align-items:center;
+  flex-wrap: wrap; justify-content:flex-end; text-align:right;
+}
+.duelo-versus{
+  align-self: center; width: 86px; height: 86px; display:grid; place-items:center;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(255,60,60,.35), rgba(0,255,160,.25));
+  border: 2px solid rgba(255,255,255,.18);
+  box-shadow: 0 18px 45px rgba(0,0,0,.35);
+  font-weight: 900; letter-spacing: 1px; text-transform: uppercase;
+  transform: rotate(-6deg); position: relative; flex: 0 0 auto;
+}
+.duelo-versus::before{ content:"⚔️"; position:absolute; top: 10px; font-size: 20px; opacity: .95; }
+.duelo-versus::after{ content:"RING"; position:absolute; bottom: 10px; font-size: 12px; opacity: .85; letter-spacing: 2px; }
 
-  @media (max-width: 520px){
+@media (max-width: 520px){
   .duelo{
     place-items: start center;
     padding-top: 6px;
   }
-
   .duelo-box{
     width: min(94vw, 560px);
     overflow: hidden;
@@ -383,52 +375,22 @@ function ensureDueloOverlay() {
     background: rgba(0,0,0,.35);
     padding: 8px 10px;
   }
-
-.duelo-row{
-  flex-direction: column;
-  gap: 2px;
-}
-
-.duelo-card{
-  padding: 6px 8px;
-}
-
-.duelo-versus{
-  width: 46px;
-  height: 36px;
-  margin: 0 auto;
-  transform: rotate(-3deg);
-  font-size: 10px;
-  border-radius: 14px;
-}
-
-.duelo-versus::before{
-  top: 1px;
-  font-size: 10px;
-}
-
-.duelo-versus::after{
-  bottom: 1px;
-  font-size: 6px;
-}
-
-  .duelo-foto{
-    width: 52px;
-    height: 52px;
+  .duelo-row{ flex-direction: column; gap: 2px; }
+  .duelo-card{ padding: 6px 8px; }
+  .duelo-versus{
+    width: 46px;
+    height: 36px;
+    margin: 0 auto;
+    transform: rotate(-3deg);
+    font-size: 10px;
+    border-radius: 14px;
   }
-
-  .duelo-nome{
-    font-size: 13px;
-  }
-
-  .duelo-placar{
-    font-size: 12px;
-    justify-content: space-between;
-  }
-
-  .duelo-head{
-  margin-bottom: 2px;
-}
+  .duelo-versus::before{ top: 1px; font-size: 10px; }
+  .duelo-versus::after{ bottom: 1px; font-size: 6px; }
+  .duelo-foto{ width: 52px; height: 52px; }
+  .duelo-nome{ font-size: 13px; }
+  .duelo-placar{ font-size: 12px; justify-content: space-between; }
+  .duelo-head{ margin-bottom: 2px; }
 }
   `;
   document.head.appendChild(style);
@@ -792,6 +754,181 @@ function enviarResposta(valor) {
   }
 }
 
+// =======================
+// VOZ
+// =======================
+let reconhecimento = null;
+let ouvindoVoz = false;
+
+function setVozStatus(txt = "") {
+  if (vozStatus) vozStatus.textContent = txt;
+}
+
+function setBotaoVozOuvindo(ativo) {
+  if (!btnVoz) return;
+  btnVoz.classList.toggle("ouvindo", !!ativo);
+}
+
+function normalizarTextoNumero(texto) {
+  return String(texto || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function textoFaladoParaNumero(texto) {
+  const t = normalizarTextoNumero(texto);
+  if (!t) return null;
+
+  if (/^\d+$/.test(t)) return Number(t);
+
+  const unidades = {
+    zero: 0, um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5,
+    seis: 6, sete: 7, oito: 8, nove: 9
+  };
+
+  const especiais = {
+    dez: 10, onze: 11, doze: 12, treze: 13, quatorze: 14, catorze: 14,
+    quinze: 15, dezesseis: 16, dezassete: 17, dezessete: 17, dezoito: 18, dezenove: 19
+  };
+
+  const dezenas = {
+    vinte: 20, trinta: 30, quarenta: 40, cinquenta: 50,
+    sessenta: 60, setenta: 70, oitenta: 80, noventa: 90
+  };
+
+  if (t in unidades) return unidades[t];
+  if (t in especiais) return especiais[t];
+  if (t in dezenas) return dezenas[t];
+  if (t === "cem" || t === "cento") return 100;
+
+  const partes = t.split(" e ").map(s => s.trim()).filter(Boolean);
+  if (partes.length === 2) {
+    const [a, b] = partes;
+    if (dezenas[a] !== undefined && unidades[b] !== undefined) {
+      return dezenas[a] + unidades[b];
+    }
+  }
+
+  const tokens = t.split(" ").filter(Boolean);
+  let total = 0;
+  let achou = false;
+
+  for (const token of tokens) {
+    if (token === "e") continue;
+    if (unidades[token] !== undefined) {
+      total += unidades[token];
+      achou = true;
+    } else if (especiais[token] !== undefined) {
+      total += especiais[token];
+      achou = true;
+    } else if (dezenas[token] !== undefined) {
+      total += dezenas[token];
+      achou = true;
+    } else if (token === "cem" || token === "cento") {
+      total += 100;
+      achou = true;
+    }
+  }
+
+  return achou ? total : null;
+}
+
+function browserTemReconhecimentoVoz() {
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
+function pararReconhecimentoVoz() {
+  if (reconhecimento) {
+    try { reconhecimento.onend = null; } catch (e) {}
+    try { reconhecimento.stop(); } catch (e) {}
+  }
+  reconhecimento = null;
+  ouvindoVoz = false;
+  setBotaoVozOuvindo(false);
+}
+
+function iniciarReconhecimentoVoz() {
+  if (!btnVoz) return;
+
+  if (!browserTemReconhecimentoVoz()) {
+    setVozStatus("Voz não suportada neste navegador.");
+    return;
+  }
+
+  if (aguardandoDecisao) return;
+
+  if (!tabuadaSelecionadaValida()) {
+    setVozStatus("Escolha a tabuada primeiro.");
+    return;
+  }
+
+  if (ouvindoVoz) {
+    pararReconhecimentoVoz();
+    setVozStatus("");
+    return;
+  }
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  reconhecimento = new SR();
+  reconhecimento.lang = "pt-BR";
+  reconhecimento.continuous = false;
+  reconhecimento.interimResults = false;
+  reconhecimento.maxAlternatives = 3;
+
+  ouvindoVoz = true;
+  setBotaoVozOuvindo(true);
+  setVozStatus("Ouvindo... fale a resposta.");
+
+  reconhecimento.onresult = (event) => {
+    const resultados = event.results?.[0];
+    if (!resultados || !resultados.length) {
+      setVozStatus("Não entendi. Tente de novo.");
+      return;
+    }
+
+    let numero = null;
+    let fraseCaptada = "";
+
+    for (let i = 0; i < resultados.length; i++) {
+      const texto = resultados[i].transcript || "";
+      fraseCaptada = texto;
+      numero = textoFaladoParaNumero(texto);
+      if (numero !== null) break;
+    }
+
+    if (numero === null) {
+      setVozStatus(`Não entendi: "${fraseCaptada}".`);
+      return;
+    }
+
+    setVozStatus(`Resposta ouvida: ${numero}`);
+    enviarResposta(numero);
+  };
+
+  reconhecimento.onerror = () => {
+    setVozStatus("Falha ao captar voz.");
+  };
+
+  reconhecimento.onend = () => {
+    reconhecimento = null;
+    ouvindoVoz = false;
+    setBotaoVozOuvindo(false);
+  };
+
+  try {
+    reconhecimento.start();
+  } catch (e) {
+    reconhecimento = null;
+    ouvindoVoz = false;
+    setBotaoVozOuvindo(false);
+    setVozStatus("Não foi possível iniciar o microfone.");
+  }
+}
+
 // ✅ resize mais leve
 let _resizeRaf = 0;
 window.addEventListener("resize", () => {
@@ -805,6 +942,10 @@ window.addEventListener("resize", () => {
 
 ensureMobileInputMode();
 setKeypadLayoutFlags();
+
+if (btnVoz) {
+  btnVoz.addEventListener("click", iniciarReconhecimentoVoz);
+}
 
 // =======================
 // CARTAS
@@ -884,7 +1025,7 @@ function atualizarPilhaPorMeta() {
 // META / FASE
 // =======================
 function setMetaByFase(f) {
-  if (f === "facil") return 4;   // teste
+  if (f === "facil") return 4;
   if (f === "media") return 40;
   return 60;
 }
@@ -933,6 +1074,9 @@ function resetTudoParaInicio() {
   modoVerificacao = "normal";
   estadoOprofessor = null;
 
+  pararReconhecimentoVoz();
+  setVozStatus("");
+
   fecharDuelo();
 
   if (fimJogoDiv) fimJogoDiv.innerHTML = "";
@@ -955,7 +1099,7 @@ function resetTudoParaInicio() {
 }
 
 // =======================
-// CRONÔMETRO (JOGO NORMAL)
+// CRONÔMETRO
 // =======================
 function iniciarCronometro() {
   if (cronometroAtivo) return;
@@ -978,6 +1122,9 @@ function finalizarJogoTempo() {
 
   modoVerificacao = "normal";
   estadoOprofessor = null;
+
+  pararReconhecimentoVoz();
+  setVozStatus("");
 
   fecharDuelo();
 
@@ -1018,6 +1165,9 @@ function abrirModal(titulo, textoHtml, simCb, naoCb) {
   aguardandoDecisao = true;
   onSim = simCb;
   onNao = naoCb;
+
+  pararReconhecimentoVoz();
+  setVozStatus("");
 
   const temModal = (modal && modalTitulo && modalTexto);
 
@@ -1109,7 +1259,7 @@ document.addEventListener("keydown", (e) => {
 }, { passive: false });
 
 // =======================
-// SOM (reutiliza AudioContext)
+// SOM
 // =======================
 let _audioCtx = null;
 function getAudioCtx() {
@@ -1153,7 +1303,7 @@ function fanfarraGrande() {
 }
 
 // =======================
-// FX (FOGOS)
+// FX
 // =======================
 let particles = [];
 let rockets = [];
@@ -1375,6 +1525,8 @@ if (tabuadaSelect) {
 
       modoVerificacao = "normal";
       estadoOprofessor = null;
+      pararReconhecimentoVoz();
+      setVozStatus("");
       return;
     }
 
@@ -1388,6 +1540,8 @@ if (tabuadaSelect) {
 
     modoVerificacao = "normal";
     estadoOprofessor = null;
+    pararReconhecimentoVoz();
+    setVozStatus("");
 
     tempo = 60;
     acertos = 0;
@@ -1824,7 +1978,6 @@ function verificar() {
   const correta = tabuada * numeroAtual;
   const acertou = (resposta === correta);
 
-  // ====== DUELO ======
   if (dueloAtivo) {
     if (performance.now() >= duelo.fimEm) {
       finalizarDueloTempo();
@@ -1855,7 +2008,6 @@ function verificar() {
     return;
   }
 
-  // ====== OPROFESSOR ======
   if (modoVerificacao === "oprofessor" && estadoOprofessor) {
     if (estadoOprofessor.getAcabou()) return;
 
@@ -1868,7 +2020,6 @@ function verificar() {
     return;
   }
 
-  // ====== JOGO NORMAL ======
   if (!cronometroAtivo) iniciarCronometro();
 
   if (acertou) acertos++;
@@ -1926,17 +2077,14 @@ document.addEventListener("keydown", (e) => {
   }
 }, { passive: false });
 
-// Enter no input = enviar
 if (respostaInput) {
   respostaInput.addEventListener("keydown", (e) => {
     if (!isEnterKey(e)) return;
     e.preventDefault();
-
     enviarResposta(respostaInput.value);
   }, { passive: false });
 }
 
-// Enter global (fora do input)
 document.addEventListener("keydown", (e) => {
   if (aguardandoDecisao) return;
   if (!isEnterKey(e)) return;
@@ -1969,3 +2117,4 @@ document.addEventListener("keydown", (e) => {
     setModoEscolhaCartas();
   }
 })();
+
