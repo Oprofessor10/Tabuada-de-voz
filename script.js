@@ -69,6 +69,10 @@ let faseAtual = "facil";
 
 let modalArmedAt = 0; // trava Enter logo após abrir modal
 
+// modo de verificação extra para não sobrescrever window.verificar
+let modoVerificacao = "normal"; // "normal" | "oprofessor"
+let estadoOprofessor = null;
+
 // =======================
 // ELEMENTOS
 // =======================
@@ -139,7 +143,7 @@ function showKeypad() {
   keypad.classList.remove("hidden");
   keypad.setAttribute("aria-hidden", "false");
   setKeypadLayoutFlags();
-  syncKeypadState(); // ✅ garante body.keypad-on correto
+  syncKeypadState();
 }
 
 function hideKeypad() {
@@ -147,7 +151,7 @@ function hideKeypad() {
   keypad.classList.add("hidden");
   keypad.setAttribute("aria-hidden", "true");
   setKeypadLayoutFlags();
-  syncKeypadState(); // ✅ garante body.keypad-on correto
+  syncKeypadState();
 }
 
 function focusRespostaSeguro() {
@@ -739,7 +743,9 @@ function keypadOk() {
     confirmarSim();
     return;
   }
-  if (typeof window.verificar === "function") window.verificar();
+
+  if (!respostaInput) return;
+  enviarResposta(respostaInput.value);
 }
 
 if (keypad) {
@@ -762,6 +768,28 @@ if (keypad) {
 function atualizarPlaceholder() {
   if (!respostaInput) return;
   respostaInput.placeholder = (respostaInput.value && respostaInput.value.length > 0) ? "" : "Digite a resposta";
+}
+
+function enviarResposta(valor) {
+  if (!respostaInput) return;
+  if (aguardandoDecisao) return;
+  if (valor === null || valor === undefined) return;
+
+  const valorTexto = String(valor).trim();
+  if (valorTexto === "") return;
+
+  respostaInput.value = valorTexto;
+  atualizarPlaceholder();
+
+  if (!jogoAtivo && tabuadaSelecionadaValida()) {
+    window.iniciarJogo(true);
+    respostaInput.value = valorTexto;
+    atualizarPlaceholder();
+  }
+
+  if (typeof window.verificar === "function") {
+    window.verificar();
+  }
 }
 
 // ✅ resize mais leve
@@ -902,6 +930,9 @@ function resetTudoParaInicio() {
   etapa = "normal";
   numeroAtual = 1;
 
+  modoVerificacao = "normal";
+  estadoOprofessor = null;
+
   fecharDuelo();
 
   if (fimJogoDiv) fimJogoDiv.innerHTML = "";
@@ -945,6 +976,9 @@ function finalizarJogoTempo() {
   jogoAtivo = false;
   cronometroAtivo = false;
 
+  modoVerificacao = "normal";
+  estadoOprofessor = null;
+
   fecharDuelo();
 
   if (acertos < meta) {
@@ -985,16 +1019,16 @@ function abrirModal(titulo, textoHtml, simCb, naoCb) {
   onSim = simCb;
   onNao = naoCb;
 
- const temModal = (modal && modalTitulo && modalTexto);
+  const temModal = (modal && modalTitulo && modalTexto);
 
-if (!temModal) {
-  if (fimJogoDiv) {
-    fimJogoDiv.innerHTML =
-      `${titulo}<br>${textoHtml}<br><br><b>ENTER = SIM</b> &nbsp; | &nbsp; <b>ESC = NÃO</b>`;
+  if (!temModal) {
+    if (fimJogoDiv) {
+      fimJogoDiv.innerHTML =
+        `${titulo}<br>${textoHtml}<br><br><b>ENTER = SIM</b> &nbsp; | &nbsp; <b>ESC = NÃO</b>`;
+    }
+  } else {
+    if (fimJogoDiv) fimJogoDiv.innerHTML = "";
   }
-} else {
-  if (fimJogoDiv) fimJogoDiv.innerHTML = ""; // ✅ evita a “tela embaixo” no mobile
-}
 
   if (modal && modalTitulo && modalTexto) {
     modalTitulo.textContent = titulo;
@@ -1147,8 +1181,6 @@ function fxConfig() {
     rocketsGrandes: mobile ? 10 : 16,
     rocketIntervalMedios: mobile ? 170 : 140,
     rocketIntervalGrandes: mobile ? 115 : 95,
-
-    // ✅ MAIS ALTO NO MOBILE (ajuste fino aqui)
     rocketExplodeVy: mobile ? -3.6 : -2.5
   };
 }
@@ -1218,7 +1250,7 @@ function stopFxLoop() {
   fxIdleSince = 0;
 
   if (fxCtx) {
-    fxCtx.setTransform(1,0,0,1,0,0);
+    fxCtx.setTransform(1, 0, 0, 1, 0, 0);
     fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
     resizeFx();
   }
@@ -1251,8 +1283,7 @@ function animateFx(ts) {
 
   fxCtx.globalCompositeOperation = "lighter";
 
-  // ===== ROCKETS =====
-    for (let i = rockets.length - 1; i >= 0; i--) {
+  for (let i = rockets.length - 1; i >= 0; i--) {
     const r = rockets[i];
     r.life -= 1;
 
@@ -1275,7 +1306,6 @@ function animateFx(ts) {
     }
   }
 
-  // ===== PARTICLES =====
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.life -= 1;
@@ -1343,6 +1373,8 @@ if (tabuadaSelect) {
       cronometroAtivo = false;
       clearInterval(intervalo);
 
+      modoVerificacao = "normal";
+      estadoOprofessor = null;
       return;
     }
 
@@ -1353,6 +1385,9 @@ if (tabuadaSelect) {
     jogoAtivo = false;
     cronometroAtivo = false;
     clearInterval(intervalo);
+
+    modoVerificacao = "normal";
+    estadoOprofessor = null;
 
     tempo = 60;
     acertos = 0;
@@ -1409,6 +1444,9 @@ window.iniciarJogo = function iniciarJogo(preservarDigitado = false) {
   cronometroAtivo = false;
   clearInterval(intervalo);
 
+  modoVerificacao = "normal";
+  estadoOprofessor = null;
+
   fecharDuelo();
 
   if (fimJogoDiv) fimJogoDiv.innerHTML = "";
@@ -1442,6 +1480,9 @@ function iniciarDesafioAleatorio() {
   jogoAtivo = true;
   cronometroAtivo = false;
   clearInterval(intervalo);
+
+  modoVerificacao = "normal";
+  estadoOprofessor = null;
 
   etapa = "aleatorio";
 
@@ -1483,6 +1524,8 @@ function iniciarDesafioOprofessor60s(onVenceu, onPerdeu) {
 
   let pontosAluno = 0;
   let pontosOp = 0;
+
+  modoVerificacao = "oprofessor";
 
   jogoAtivo = true;
   cronometroAtivo = false;
@@ -1549,6 +1592,9 @@ function iniciarDesafioOprofessor60s(onVenceu, onPerdeu) {
     if (acabou) return;
     acabou = true;
 
+    modoVerificacao = "normal";
+    estadoOprofessor = null;
+
     if (tick) clearInterval(tick);
     tick = null;
 
@@ -1582,36 +1628,23 @@ function iniciarDesafioOprofessor60s(onVenceu, onPerdeu) {
     }
   }
 
-  const verificarOriginal = window.verificar;
-
-  window.verificar = function () {
-    if (acabou) return;
-    if (!respostaInput) return;
-
-    const v = respostaInput.value;
-    if (v === "") return;
-
-    const resposta = Number(v);
-    const correta = tabuada * numeroAtual;
-
-    if (resposta === correta) {
-      pontosAluno++;
-      novaPerguntaGlobal();
-    } else {
-      respostaInput.value = "";
-      atualizarPlaceholder();
-      focusRespostaSeguro();
+  estadoOprofessor = {
+    getAcabou: () => acabou,
+    addPontoAluno: () => { pontosAluno++; },
+    novaPerguntaGlobal,
+    limparResposta: () => {
+      if (respostaInput) {
+        respostaInput.value = "";
+        atualizarPlaceholder();
+        focusRespostaSeguro();
+      }
     }
   };
-
-  const restore = () => { window.verificar = verificarOriginal; };
 
   t0 = performance.now();
   iniciarTempoRegressivo();
   agendarOprofessor();
   novaPerguntaGlobal();
-
-  setTimeout(() => { restore(); }, 60500);
 }
 
 // =======================
@@ -1621,6 +1654,9 @@ function avancarParaProximaTabuadaOuFase() {
   jogoAtivo = true;
   cronometroAtivo = false;
   clearInterval(intervalo);
+
+  modoVerificacao = "normal";
+  estadoOprofessor = null;
 
   fecharDuelo();
 
@@ -1772,6 +1808,7 @@ function bateuMetaAleatorio() {
     fogosGrandes();
   }, 120);
 }
+
 // =======================
 // VERIFICAR
 // =======================
@@ -1815,6 +1852,19 @@ function verificar() {
     respostaInput.value = "";
     atualizarPlaceholder();
     focusRespostaSeguro();
+    return;
+  }
+
+  // ====== OPROFESSOR ======
+  if (modoVerificacao === "oprofessor" && estadoOprofessor) {
+    if (estadoOprofessor.getAcabou()) return;
+
+    if (acertou) {
+      estadoOprofessor.addPontoAluno();
+      estadoOprofessor.novaPerguntaGlobal();
+    } else {
+      estadoOprofessor.limparResposta();
+    }
     return;
   }
 
@@ -1872,6 +1922,7 @@ document.addEventListener("keydown", (e) => {
     window.iniciarJogo(true);
     respostaInput.value = e.key;
     respostaInput.focus();
+    atualizarPlaceholder();
   }
 }, { passive: false });
 
@@ -1881,14 +1932,7 @@ if (respostaInput) {
     if (!isEnterKey(e)) return;
     e.preventDefault();
 
-    const digitado = respostaInput.value;
-    if (!jogoAtivo) {
-      if (!tabuadaSelecionadaValida()) return;
-      window.iniciarJogo(true);
-      respostaInput.value = digitado;
-    }
-
-    if (typeof window.verificar === "function") window.verificar();
+    enviarResposta(respostaInput.value);
   }, { passive: false });
 }
 
@@ -1904,14 +1948,7 @@ document.addEventListener("keydown", (e) => {
     respostaInput.focus();
   }
 
-  const digitado = respostaInput.value;
-  if (!jogoAtivo) {
-    if (!tabuadaSelecionadaValida()) return;
-    window.iniciarJogo(true);
-    respostaInput.value = digitado;
-  }
-
-  if (typeof window.verificar === "function") window.verificar();
+  enviarResposta(respostaInput.value);
 }, { passive: false });
 
 // =======================
@@ -1931,5 +1968,4 @@ document.addEventListener("keydown", (e) => {
   } else {
     setModoEscolhaCartas();
   }
-
 })();
