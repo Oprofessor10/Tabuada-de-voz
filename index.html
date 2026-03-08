@@ -100,15 +100,21 @@
 
     <!-- IMPORTANTE: esta área vai "respeitar" o keypad via --keypadH no CSS -->
     <div class="resposta-area" id="respostaArea">
-      <input
-        type="text"
-        id="respostaInput"
-        placeholder="Digite a resposta"
-        autocomplete="off"
-        inputmode="none"
-        enterkeyhint="done"
-      />
-    </div>
+  <div class="resposta-linha">
+    <input
+      type="text"
+      id="respostaInput"
+      placeholder="Digite a resposta"
+      autocomplete="off"
+      inputmode="none"
+      enterkeyhint="done"
+    />
+    <button id="btnVoz" class="btn-voz" type="button" title="Responder por voz" aria-label="Responder por voz">
+      🎤
+    </button>
+  </div>
+  <div id="vozStatus" class="voz-status"></div>
+</div>
 
     <div id="fimJogo" class="fim-jogo"></div>
 
@@ -186,5 +192,6 @@
 
 </body>
 </html>
+
 
 
