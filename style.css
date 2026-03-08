@@ -968,3 +968,89 @@ body.modo-duelo .multiplicador{
   }
 
 }
+
+/* =========================
+   VOZ
+========================= */
+.resposta-linha{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn-voz{
+  width: 52px;
+  height: 52px;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 22px;
+  font-weight: 900;
+  background: linear-gradient(45deg, #00ff88, #00cc66);
+  color: #052b17;
+  box-shadow: 0 10px 24px rgba(0,0,0,.25);
+  flex: 0 0 auto;
+}
+
+.btn-voz.ouvindo{
+  animation: pulseMic .9s infinite;
+}
+
+@keyframes pulseMic{
+  0%{ transform: scale(1); }
+  50%{ transform: scale(1.08); }
+  100%{ transform: scale(1); }
+}
+
+.voz-status{
+  margin-top: 6px;
+  min-height: 18px;
+  font-size: 14px;
+  font-weight: 700;
+  opacity: .92;
+}
+
+@media (max-width: 900px){
+  .resposta-area input{
+    width: min(290px, 70vw) !important;
+  }
+}
+
+@media (max-width: 900px) and (orientation: portrait){
+  body.keypad-on .resposta-linha{
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+  }
+
+  body.keypad-on .resposta-area input{
+    display: block !important;
+    width: min(290px, 70vw) !important;
+    margin: 0 !important;
+    height: 54px !important;
+    border-radius: 14px !important;
+  }
+
+  body.keypad-on .btn-voz{
+    width: 54px !important;
+    height: 54px !important;
+    border-radius: 14px !important;
+    flex: 0 0 54px !important;
+  }
+}
+
+@media (max-width: 900px) and (orientation: landscape){
+  body.keypad-on .resposta-linha{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  body.keypad-on .btn-voz{
+    width: 54px;
+    height: 54px;
+    flex: 0 0 54px;
+  }
+}
