@@ -71,7 +71,12 @@ let modalArmedAt = 0;
 
 let modoVerificacao = "normal";
 let estadoOprofessor = null;
-
+let vozPodeResponder = true;
+let vozCooldownAte = 0;
+let numeroDetectado = null;
+let numeroDetectadoAt = 0;
+let aguardandoProcessamentoVozAte = 0;
+let estabilidadeMinima = 10; // ms
 // =======================
 // ELEMENTOS
 // =======================
@@ -485,6 +490,9 @@ function configurarDueloPorFase() {
 function gerarPerguntaDueloNova() {
   numeroAtual = Math.floor(Math.random() * 10) + 1;
   virarParaVersoComNumero(cartaDireita, numDireita, numeroAtual);
+
+  vozPodeResponder = true;
+  
 }
 
 function iniciarTickDuelo() {
@@ -526,6 +534,9 @@ function abrirDuelo(mestre) {
 
   jogoAtivo = true;
   focusRespostaSeguro();
+  if (!ouvindoVoz && !aguardandoDecisao) {
+    iniciarReconhecimentoVoz();
+  }
 }
 
 function finalizarDueloTempo() {
@@ -740,6 +751,10 @@ function enviarResposta(valor) {
   const valorTexto = String(valor).trim();
   if (valorTexto === "") return;
 
+  if (respostaInput.value === valorTexto && vozCooldownAte > performance.now()) {
+    return;
+  }
+
   respostaInput.value = valorTexto;
   atualizarPlaceholder();
 
@@ -753,170 +768,345 @@ function enviarResposta(valor) {
     window.verificar();
   }
 }
-
 // =======================
-// VOZ
+// CONVERTER VOZ EM NÚMERO
 // =======================
-let reconhecimento = null;
-let ouvindoVoz = false;
+function textoFaladoParaNumero(txt) {
+  if (!txt) return null;
 
-function setVozStatus(txt = "") {
-  if (vozStatus) vozStatus.textContent = txt;
+  txt = String(txt).toLowerCase().trim();
+
+  txt = txt
+    .replace(/[.,;!?]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const matchNumero = txt.match(/\d+/);
+  if (matchNumero) {
+    const n = parseInt(matchNumero[0], 10);
+    if (!isNaN(n)) return n;
+  }
+
+  const unidades = {
+    "zero": 0,
+    "um": 1, "uma": 1,
+    "dois": 2, "duas": 2,
+    "tres": 3, "três": 3,
+    "quatro": 4,
+    "cinco": 5,
+    "seis": 6, "meia": 6,
+    "sete": 7,
+    "oito": 8,
+    "nove": 9
+  };
+
+  const especiais = {
+    "dez": 10,
+    "onze": 11,
+    "doze": 12,
+    "treze": 13,
+    "catorze": 14, "quatorze": 14,
+    "quinze": 15,
+    "dezesseis": 16, "dezasseis": 16,
+    "dezessete": 17, "dezassete": 17,
+    "dezoito": 18,
+    "dezenove": 19
+  };
+
+  const dezenas = {
+    "vinte": 20,
+    "trinta": 30,
+    "quarenta": 40,
+    "cinquenta": 50,
+    "sessenta": 60,
+    "setenta": 70,
+    "oitenta": 80,
+    "noventa": 90
+  };
+
+  const limpo = txt
+    .replace(/\bé\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (unidades.hasOwnProperty(limpo)) return unidades[limpo];
+  if (especiais.hasOwnProperty(limpo)) return especiais[limpo];
+  if (dezenas.hasOwnProperty(limpo)) return dezenas[limpo];
+  if (limpo === "cem" || limpo === "cento") return 100;
+
+  const tokens = limpo.split(" ").filter(Boolean);
+
+  let total = 0;
+  let reconheceu = false;
+
+  for (const t of tokens) {
+    if (dezenas.hasOwnProperty(t)) {
+      total += dezenas[t];
+      reconheceu = true;
+      continue;
+    }
+    if (especiais.hasOwnProperty(t)) {
+      total += especiais[t];
+      reconheceu = true;
+      continue;
+    }
+    if (unidades.hasOwnProperty(t)) {
+      total += unidades[t];
+      reconheceu = true;
+      continue;
+    }
+    if (t === "cem" || t === "cento") {
+      total += 100;
+      reconheceu = true;
+      continue;
+    }
+  }
+
+  if (reconheceu && total >= 0 && total <= 100) return total;
+
+  return null;
+}
+function numeroParaPalavrasBR(n) {
+  const unidades = ["zero","um","dois","três","quatro","cinco","seis","sete","oito","nove"];
+  const especiais = {
+    10:"dez", 11:"onze", 12:"doze", 13:"treze", 14:"quatorze", 15:"quinze",
+    16:"dezesseis", 17:"dezessete", 18:"dezoito", 19:"dezenove"
+  };
+  const dezenas = {
+    20:"vinte", 30:"trinta", 40:"quarenta", 50:"cinquenta",
+    60:"sessenta", 70:"setenta", 80:"oitenta", 90:"noventa"
+  };
+
+  if (n < 10) return unidades[n];
+  if (especiais[n]) return especiais[n];
+  if (dezenas[n]) return dezenas[n];
+  if (n === 100) return "cem";
+
+  const d = Math.floor(n / 10) * 10;
+  const u = n % 10;
+  if (dezenas[d] && u > 0) return `${dezenas[d]} e ${unidades[u]}`;
+  return String(n);
 }
 
-function setBotaoVozOuvindo(ativo) {
-  if (!btnVoz) return;
-  btnVoz.classList.toggle("ouvindo", !!ativo);
-}
-
-function normalizarTextoNumero(texto) {
-  return String(texto || "")
+function normalizarTextoVoz(txt) {
+  return String(txt || "")
     .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\w\s]/g, " ")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[.,;!?]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function textoFaladoParaNumero(texto) {
-  const t = normalizarTextoNumero(texto);
-  if (!t) return null;
+function extrairNumeroEsperadoDoTexto(txt, esperado) {
+  const t = normalizarTextoVoz(txt);
+  const alvoNum = String(esperado);
+  const alvoPalavra = normalizarTextoVoz(numeroParaPalavrasBR(esperado));
 
-  if (/^\d+$/.test(t)) return Number(t);
+  if (t === alvoNum) return esperado;
+  if (t.includes(` ${alvoNum} `) || t.startsWith(`${alvoNum} `) || t.endsWith(` ${alvoNum}`)) return esperado;
+  if (t === alvoPalavra) return esperado;
+  if (t.includes(alvoPalavra)) return esperado;
 
-  const unidades = {
-    zero: 0, um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5,
-    seis: 6, sete: 7, oito: 8, nove: 9
-  };
+  const parseado = textoFaladoParaNumero(t);
+  if (parseado === esperado) return esperado;
 
-  const especiais = {
-    dez: 10, onze: 11, doze: 12, treze: 13, quatorze: 14, catorze: 14,
-    quinze: 15, dezesseis: 16, dezassete: 17, dezessete: 17, dezoito: 18, dezenove: 19
-  };
-
-  const dezenas = {
-    vinte: 20, trinta: 30, quarenta: 40, cinquenta: 50,
-    sessenta: 60, setenta: 70, oitenta: 80, noventa: 90
-  };
-
-  if (t in unidades) return unidades[t];
-  if (t in especiais) return especiais[t];
-  if (t in dezenas) return dezenas[t];
-  if (t === "cem" || t === "cento") return 100;
-
-  const partes = t.split(" e ").map(s => s.trim()).filter(Boolean);
-  if (partes.length === 2) {
-    const [a, b] = partes;
-    if (dezenas[a] !== undefined && unidades[b] !== undefined) {
-      return dezenas[a] + unidades[b];
-    }
-  }
-
-  const tokens = t.split(" ").filter(Boolean);
-  let total = 0;
-  let achou = false;
-
-  for (const token of tokens) {
-    if (token === "e") continue;
-    if (unidades[token] !== undefined) {
-      total += unidades[token];
-      achou = true;
-    } else if (especiais[token] !== undefined) {
-      total += especiais[token];
-      achou = true;
-    } else if (dezenas[token] !== undefined) {
-      total += dezenas[token];
-      achou = true;
-    } else if (token === "cem" || token === "cento") {
-      total += 100;
-      achou = true;
-    }
-  }
-
-  return achou ? total : null;
+  return null;
 }
+// =======================
+// SUPORTE MICROFONE
+// =======================
 
 function browserTemReconhecimentoVoz() {
   return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 }
 
+let reconhecimento = null;
+let ouvindoVoz = false;
+
+const TURBO_ESTABILIDADE = 12;
+const TURBO_COOLDOWN = 40;
+
+function setBotaoVozOuvindo(on) {
+  if (!btnVoz) return;
+  btnVoz.classList.toggle("ouvindo", !!on);
+}
+
+function setVozStatus(txt) {
+  if (!vozStatus) return;
+  vozStatus.textContent = txt || "";
+}
+
 function pararReconhecimentoVoz() {
-  if (reconhecimento) {
-    try { reconhecimento.onend = null; } catch (e) {}
-    try { reconhecimento.stop(); } catch (e) {}
-  }
+  try {
+    if (reconhecimento) {
+      reconhecimento.onresult = null;
+      reconhecimento.onerror = null;
+      reconhecimento.onend = null;
+      reconhecimento.stop();
+    }
+  } catch (e) {}
+
   reconhecimento = null;
   ouvindoVoz = false;
+
+  numeroDetectado = null;
+  numeroDetectadoAt = 0;
+  vozCooldownAte = 0;
+  vozPodeResponder = true;
+  aguardandoProcessamentoVozAte = 0;
+
   setBotaoVozOuvindo(false);
 }
 
 function iniciarReconhecimentoVoz() {
-  if (!btnVoz) return;
-
   if (!browserTemReconhecimentoVoz()) {
-    setVozStatus("Voz não suportada neste navegador.");
+    setVozStatus("Voz não suportada");
     return;
   }
 
   if (aguardandoDecisao) return;
-
-  if (!tabuadaSelecionadaValida()) {
-    setVozStatus("Escolha a tabuada primeiro.");
-    return;
-  }
-
-  if (ouvindoVoz) {
-    pararReconhecimentoVoz();
-    setVozStatus("");
-    return;
-  }
+  if (reconhecimento || ouvindoVoz) return;
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
   reconhecimento = new SR();
   reconhecimento.lang = "pt-BR";
-  reconhecimento.continuous = false;
-  reconhecimento.interimResults = false;
-  reconhecimento.maxAlternatives = 3;
+  reconhecimento.continuous = true;
+  reconhecimento.interimResults = true;
+  reconhecimento.maxAlternatives = 1;
+
+  numeroDetectado = null;
+  numeroDetectadoAt = 0;
+  vozCooldownAte = 0;
+  vozPodeResponder = true;
+  aguardandoProcessamentoVozAte = 0;
 
   ouvindoVoz = true;
   setBotaoVozOuvindo(true);
-  setVozStatus("Ouvindo... fale a resposta.");
+  setVozStatus("🎤 Ouvindo...");
 
   reconhecimento.onresult = (event) => {
-    const resultados = event.results?.[0];
-    if (!resultados || !resultados.length) {
-      setVozStatus("Não entendi. Tente de novo.");
+    const agora = performance.now();
+
+    if (agora < vozCooldownAte) return;
+    if (!vozPodeResponder) return;
+    if (!event.results || !event.results.length) return;
+
+    const r = event.results[event.results.length - 1];
+    if (!r || !r.length) return;
+
+   const textoBruto = (r[0] && r[0].transcript) ? r[0].transcript : "";
+const texto = normalizarTextoVoz(textoBruto);
+const isFinal = !!r.isFinal;
+const corretaAtual = tabuada * numeroAtual;
+
+// 🚀 MODO TURBO CELULAR
+if (isMobileLike()) {
+
+  // tenta detectar o número o mais rápido possível
+  const numeroRapido = textoFaladoParaNumero(texto);
+
+  if (numeroRapido !== null) {
+
+    vozPodeResponder = false;
+    vozCooldownAte = performance.now() + 70;
+
+    setVozStatus(`🎤 ${numeroRapido}`);
+    enviarResposta(numeroRapido);
+
+    numeroDetectado = null;
+    numeroDetectadoAt = 0;
+
+    setTimeout(() => {
+      vozPodeResponder = true;
+    }, 20);
+
+    return;
+  }
+}
+
+    const numeroEsperado = extrairNumeroEsperadoDoTexto(texto, corretaAtual);
+    if (numeroEsperado !== null) {
+      vozPodeResponder = false;
+     vozCooldownAte = agora + (isMobileLike() ? 70 : 40);
+      numeroDetectado = null;
+      numeroDetectadoAt = 0;
+      aguardandoProcessamentoVozAte = 0;
+
+      setVozStatus(`🎤 ${numeroEsperado}`);
+      enviarResposta(numeroEsperado);
+
+      requestAnimationFrame(() => {
+        vozPodeResponder = true;
+      });
       return;
     }
 
-    let numero = null;
-    let fraseCaptada = "";
+    const numero = textoFaladoParaNumero(texto);
+    if (numero === null) return;
 
-    for (let i = 0; i < resultados.length; i++) {
-      const texto = resultados[i].transcript || "";
-      fraseCaptada = texto;
-      numero = textoFaladoParaNumero(texto);
-      if (numero !== null) break;
-    }
+    if (numero !== numeroDetectado) {
+      numeroDetectado = numero;
+      numeroDetectadoAt = agora;
 
-    if (numero === null) {
-      setVozStatus(`Não entendi: "${fraseCaptada}".`);
+      if (isFinal) {
+        vozPodeResponder = false;
+        vozCooldownAte = agora + (isMobileLike() ? 70 : 40);
+        numeroDetectado = null;
+        numeroDetectadoAt = 0;
+        aguardandoProcessamentoVozAte = 0;
+
+        setVozStatus(`🎤 ${numero}`);
+        enviarResposta(numero);
+
+        requestAnimationFrame(() => {
+          vozPodeResponder = true;
+        });
+      }
       return;
     }
 
-    setVozStatus(`Resposta ouvida: ${numero}`);
+    const tempoEstavel = agora - numeroDetectadoAt;
+
+    if (!isFinal && tempoEstavel < TURBO_ESTABILIDADE) return;
+    if (isFinal && tempoEstavel < 4) return;
+
+    vozPodeResponder = false;
+   vozCooldownAte = agora + (isMobileLike() ? 70 : 40);
+    numeroDetectado = null;
+    numeroDetectadoAt = 0;
+    aguardandoProcessamentoVozAte = 0;
+
+    setVozStatus(`🎤 ${numero}`);
     enviarResposta(numero);
+
+    requestAnimationFrame(() => {
+      vozPodeResponder = true;
+    });
   };
 
   reconhecimento.onerror = () => {
-    setVozStatus("Falha ao captar voz.");
+    reconhecimento = null;
+    ouvindoVoz = false;
+    setBotaoVozOuvindo(false);
+
+    if ((jogoAtivo || tabuadaSelecionadaValida()) && !aguardandoDecisao) {
+      setTimeout(() => {
+        if (!reconhecimento) iniciarReconhecimentoVoz();
+      }, 120);
+    }
   };
 
   reconhecimento.onend = () => {
     reconhecimento = null;
     ouvindoVoz = false;
     setBotaoVozOuvindo(false);
+
+    if ((jogoAtivo || tabuadaSelecionadaValida()) && !aguardandoDecisao) {
+      setTimeout(() => {
+        if (!reconhecimento) iniciarReconhecimentoVoz();
+      }, 120);
+    }
   };
 
   try {
@@ -925,26 +1115,7 @@ function iniciarReconhecimentoVoz() {
     reconhecimento = null;
     ouvindoVoz = false;
     setBotaoVozOuvindo(false);
-    setVozStatus("Não foi possível iniciar o microfone.");
   }
-}
-
-// ✅ resize mais leve
-let _resizeRaf = 0;
-window.addEventListener("resize", () => {
-  if (_resizeRaf) cancelAnimationFrame(_resizeRaf);
-  _resizeRaf = requestAnimationFrame(() => {
-    ensureMobileInputMode();
-    setKeypadLayoutFlags();
-    resizeFx();
-  });
-}, { passive: true });
-
-ensureMobileInputMode();
-setKeypadLayoutFlags();
-
-if (btnVoz) {
-  btnVoz.addEventListener("click", iniciarReconhecimentoVoz);
 }
 
 // =======================
@@ -1072,7 +1243,8 @@ function resetTudoParaInicio() {
   numeroAtual = 1;
 
   modoVerificacao = "normal";
-  estadoOprofessor = null;
+estadoOprofessor = null;
+vozPodeResponder = true;
 
   pararReconhecimentoVoz();
   setVozStatus("");
@@ -1561,6 +1733,11 @@ if (tabuadaSelect) {
     virarParaVersoComNumero(cartaDireita, numDireita, numeroAtual);
 
     focusRespostaSeguro();
+    setTimeout(() => {
+  if (!ouvindoVoz && !aguardandoDecisao) {
+    iniciarReconhecimentoVoz();
+  }
+}, 0);
   });
 }
 
@@ -1587,12 +1764,15 @@ window.iniciarJogo = function iniciarJogo(preservarDigitado = false) {
 
   atualizarLabelTabuada();
 
-  etapa = "normal";
-  numeroAtual = 1;
+etapa = "normal";
+numeroAtual = 1;
 
-  tempo = 60;
-  acertos = 0;
-  erros = 0;
+vozPodeResponder = true;
+
+
+tempo = 60;
+acertos = 0;
+erros = 0;
 
   jogoAtivo = true;
   cronometroAtivo = false;
@@ -1616,8 +1796,13 @@ window.iniciarJogo = function iniciarJogo(preservarDigitado = false) {
     if (!preservarDigitado) respostaInput.value = "";
     atualizarPlaceholder();
     focusRespostaSeguro();
+    if (!ouvindoVoz) {
+  iniciarReconhecimentoVoz();
+}
   }
 };
+
+
 
 // =======================
 // PRÓXIMO NÚMERO
@@ -1625,6 +1810,9 @@ window.iniciarJogo = function iniciarJogo(preservarDigitado = false) {
 function proximoNumero() {
   if (etapa === "normal") numeroAtual = (numeroAtual < 10) ? (numeroAtual + 1) : 1;
   else numeroAtual = Math.floor(Math.random() * 10) + 1;
+
+ vozPodeResponder = true;
+ 
 }
 
 // =======================
@@ -1653,19 +1841,28 @@ function iniciarDesafioAleatorio() {
 
   numeroAtual = Math.floor(Math.random() * 10) + 1;
 
+vozPodeResponder = true;
+
+
   setModoJogoCartas();
   virarParaVersoComNumero(cartaDireita, numDireita, numeroAtual);
 
-  if (respostaInput) {
+    if (respostaInput) {
     respostaInput.value = "";
     focusRespostaSeguro();
+    if (!ouvindoVoz) {
+  iniciarReconhecimentoVoz();
+}
   }
 }
 
 // =======================
 // OPROFESSOR
 // =======================
-const OPROFESSOR = { nome: "Oprofessor 🐾 (Pantera)", img: "./oprofessor.png" };
+const OPROFESSOR = {
+  nome: "Oprofessor 🐾 (Pantera)",
+  img: "./oprofessor_carta.png"
+};
 
 const OP_RULES = {
   facil:   { alunoMin: 25, opMax: 24 },
@@ -1688,8 +1885,10 @@ function iniciarDesafioOprofessor60s(onVenceu, onPerdeu) {
   if (typeof setModoJogoCartas === "function") setModoJogoCartas();
 
   function novaPerguntaGlobal() {
-    tabuada = Math.floor(Math.random() * 10) + 1;
-    numeroAtual = Math.floor(Math.random() * 10) + 1;
+tabuada = Math.floor(Math.random() * 10) + 1;
+numeroAtual = Math.floor(Math.random() * 10) + 1;
+
+vozPodeResponder = true;
 
     if (tabuadaSelect) tabuadaSelect.value = String(tabuada);
     atualizarLabelTabuada();
@@ -1700,6 +1899,10 @@ function iniciarDesafioOprofessor60s(onVenceu, onPerdeu) {
     if (respostaInput) respostaInput.value = "";
     atualizarPlaceholder();
     focusRespostaSeguro();
+
+    if (!ouvindoVoz && !aguardandoDecisao) {
+    iniciarReconhecimentoVoz();
+  }
   }
 
   let acabou = false;
@@ -1842,11 +2045,18 @@ function avancarParaProximaTabuadaOuFase() {
         <div class="op-stage">
           <div class="op-card3d">
             <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
-              ${OPROFESSOR.img ? `<img class="op-img" src="${OPROFESSOR.img}" style="
-                width:230px;height:230px;border-radius:26px;object-fit:contain;
-                background: rgba(255,255,255,.06); padding: 10px;
-                border:2px solid rgba(255,255,255,.18);
-              ">` : ""}
+            ${OPROFESSOR.img ? `<img class="op-img" src="${OPROFESSOR.img}" alt="Oprofessor" style="
+  width:230px;
+  height:230px;
+  display:block;
+  margin:0 auto;
+  border-radius:26px;
+  object-fit:contain;
+  background: rgba(255,255,255,.06);
+  padding: 10px;
+  border:2px solid rgba(255,255,255,.18);
+  box-shadow: 0 14px 34px rgba(0,0,0,.35);
+" onerror="this.style.display='none'; console.log('erro ao carregar imagem do Oprofessor:', this.src);">` : ""}
 
               <div class="op-title" style="font-size:22px; font-weight:1000; letter-spacing:1px; text-align:center;">
                 🐾 OPROFESSOR CHEGOU
@@ -1903,12 +2113,16 @@ function avancarParaProximaTabuadaOuFase() {
 
   atualizarLabelTabuada();
 
-  etapa = "normal";
-  numeroAtual = 1;
+etapa = "normal";
+numeroAtual = 1;
 
-  tempo = 60;
-  acertos = 0;
-  erros = 0;
+vozPodeResponder = true;
+
+
+tempo = 60;
+acertos = 0;
+erros = 0;
+
   atualizarPainel();
   setPilhaDireita(meta);
 
@@ -1919,6 +2133,9 @@ function avancarParaProximaTabuadaOuFase() {
   if (respostaInput) {
     respostaInput.value = "";
     focusRespostaSeguro();
+    if (!ouvindoVoz) {
+  iniciarReconhecimentoVoz();
+}
   }
 }
 
@@ -1974,6 +2191,8 @@ function verificar() {
   const valor = respostaInput.value;
   if (valor === "") return;
 
+  const agora = performance.now();
+
   const resposta = Number(valor);
   const correta = tabuada * numeroAtual;
   const acertou = (resposta === correta);
@@ -1984,43 +2203,43 @@ function verificar() {
       return;
     }
 
-    if (acertou) {
-      duelo.pontosAluno++;
-      atualizarDueloUI();
+ if (!acertou && isMobileLike() && agora < aguardandoProcessamentoVozAte) {
+  return;
+}
 
-      duelo.perguntaToken++;
-      gerarPerguntaDueloNova();
+    if (acertou) duelo.pontosAluno++;
+    else duelo.errosAluno++;
 
-      respostaInput.value = "";
-      atualizarPlaceholder();
-      focusRespostaSeguro();
-
-      agendarRespostaMestre();
-      return;
-    }
-
-    duelo.errosAluno++;
     atualizarDueloUI();
+respostaInput.value = "";
+atualizarPlaceholder();
 
-    respostaInput.value = "";
-    atualizarPlaceholder();
-    focusRespostaSeguro();
-    return;
+duelo.perguntaToken++;
+gerarPerguntaDueloNova();
+
+focusRespostaSeguro();
+agendarRespostaMestre();
+return;
   }
 
   if (modoVerificacao === "oprofessor" && estadoOprofessor) {
     if (estadoOprofessor.getAcabou()) return;
 
-    if (acertou) {
-      estadoOprofessor.addPontoAluno();
-      estadoOprofessor.novaPerguntaGlobal();
-    } else {
-      estadoOprofessor.limparResposta();
-    }
+   if (!acertou && isMobileLike() && agora < aguardandoProcessamentoVozAte) {
+  return;
+}
+
+    if (acertou) estadoOprofessor.addPontoAluno();
+
+    estadoOprofessor.novaPerguntaGlobal();
     return;
   }
 
   if (!cronometroAtivo) iniciarCronometro();
+
+if (!acertou && isMobileLike() && agora < aguardandoProcessamentoVozAte) {
+  return;
+}
 
   if (acertou) acertos++;
   else erros++;
@@ -2035,10 +2254,13 @@ function verificar() {
     return;
   }
 
-  proximoNumero();
-  setModoJogoCartas();
+proximoNumero();
+
+// 🚀 troca imediata (sem delay visual)
+requestAnimationFrame(() => {
   virarParaVersoComNumero(cartaDireita, numDireita, numeroAtual);
   focusRespostaSeguro();
+});
 }
 
 window.verificar = verificar;
@@ -2062,25 +2284,25 @@ if ("serviceWorker" in navigator) {
 // =======================
 document.addEventListener("keydown", (e) => {
   if (aguardandoDecisao) return;
-  if (isMobileLike()) return;
-  if (!respostaInput || respostaInput.disabled) return;
+  if (!isEnterKey(e)) return;
 
-  const isDigit = /^[0-9]$/.test(e.key);
-  if (!isDigit) return;
+  if (document.activeElement === respostaInput) return;
 
-  if (!jogoAtivo && tabuadaSelecionadaValida()) {
-    e.preventDefault();
-    window.iniciarJogo(true);
-    respostaInput.value = e.key;
+  e.preventDefault();
+  if (!respostaInput) return;
+
+  if (!respostaInput.disabled && document.activeElement !== respostaInput) {
     respostaInput.focus();
-    atualizarPlaceholder();
   }
+
+  enviarResposta(respostaInput.value);
 }, { passive: false });
 
 if (respostaInput) {
   respostaInput.addEventListener("keydown", (e) => {
     if (!isEnterKey(e)) return;
     e.preventDefault();
+    e.stopPropagation();
     enviarResposta(respostaInput.value);
   }, { passive: false });
 }
