@@ -923,7 +923,7 @@ function browserTemReconhecimentoVoz() {
 let reconhecimento = null;
 let ouvindoVoz = false;
 
-const TURBO_ESTABILIDADE = 12;
+const TURBO_ESTABILIDADE = 4;
 const TURBO_COOLDOWN = 40;
 
 function setBotaoVozOuvindo(on) {
@@ -1009,10 +1009,14 @@ if (isMobileLike()) {
   if (numeroRapido !== null) {
 
     vozPodeResponder = false;
-    vozCooldownAte = performance.now() + 70;
+    vozCooldownAte = performance.now() + 25;
 
     setVozStatus(`🎤 ${numeroRapido}`);
     enviarResposta(numeroRapido);
+
+    requestAnimationFrame(() => {
+  vozPodeResponder = true;
+});
 
     numeroDetectado = null;
     numeroDetectadoAt = 0;
@@ -1025,8 +1029,7 @@ if (isMobileLike()) {
   }
 }
 
-    const numeroEsperado = extrairNumeroEsperadoDoTexto(texto, corretaAtual);
-    if (numeroEsperado !== null) {
+ const numeroRapido = textoFaladoParaNumero(texto);
       vozPodeResponder = false;
      vozCooldownAte = agora + (isMobileLike() ? 70 : 40);
       numeroDetectado = null;
@@ -1091,9 +1094,9 @@ if (isMobileLike()) {
     setBotaoVozOuvindo(false);
 
     if ((jogoAtivo || tabuadaSelecionadaValida()) && !aguardandoDecisao) {
-      setTimeout(() => {
-        if (!reconhecimento) iniciarReconhecimentoVoz();
-      }, 120);
+     if (!reconhecimento && jogoAtivo) {
+  iniciarReconhecimentoVoz();
+}
     }
   };
 
@@ -2203,8 +2206,7 @@ function verificar() {
       return;
     }
 
- if (!acertou && isMobileLike() && agora < aguardandoProcessamentoVozAte) {
-  return;
+
 }
 
     if (acertou) duelo.pontosAluno++;
@@ -2225,8 +2227,7 @@ return;
   if (modoVerificacao === "oprofessor" && estadoOprofessor) {
     if (estadoOprofessor.getAcabou()) return;
 
-   if (!acertou && isMobileLike() && agora < aguardandoProcessamentoVozAte) {
-  return;
+
 }
 
     if (acertou) estadoOprofessor.addPontoAluno();
@@ -2237,8 +2238,7 @@ return;
 
   if (!cronometroAtivo) iniciarCronometro();
 
-if (!acertou && isMobileLike() && agora < aguardandoProcessamentoVozAte) {
-  return;
+
 }
 
   if (acertou) acertos++;
